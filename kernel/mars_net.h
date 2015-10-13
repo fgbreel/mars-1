@@ -96,6 +96,7 @@ enum {
 	CMD_GETENTS,
 	CMD_MREF,
 	CMD_CB,
+	CMD_CONNECT_LOGGER,
 };
 
 #define CMD_FLAG_MASK     255

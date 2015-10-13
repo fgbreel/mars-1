@@ -37,6 +37,7 @@
 #include "mars_bio.h"
 #include "mars_aio.h"
 #include "mars_sio.h"
+#include "mars_trans_logger.h"
 
 ///////////////////////// own type definitions ////////////////////////
 
@@ -558,6 +559,36 @@ int handler_thread(void *data)
 		case CMD_CB:
 			MARS_ERR("#%d oops, as a server I should never get CMD_CB; something is wrong here - attack attempt??\n", sock->s_debug_nr);
 			break;
+		case CMD_CONNECT_LOGGER:
+		{
+			struct mars_global *global = mars_global;
+			struct mars_brick *prev;
+			const char *path = cmd.cmd_str1;
+
+			prev = mars_find_brick(global, (const struct generic_brick_type *)&trans_logger_brick_type, path);
+			status = -ENOENT;
+			if (!prev) {
+				MARS_WRN("not found '%s'\n", path);
+				break;
+			}
+			if (prev->killme) {
+				MARS_WRN("dead '%s'\n", path);
+				break;
+			}
+			status = -EBUSY;
+			// TODO: locking
+			if (prev->outputs[0]->nr_connected) {
+				MARS_WRN("try to connect to '%s'\n", path);
+				break;
+			}
+
+			status = generic_connect((void*)brick->inputs[0], (void*)prev->outputs[0]);
+			if (unlikely(status < 0)) {
+				MARS_ERR("#%d cannot connect to '%s'\n", sock->s_debug_nr, path);
+			}
+			brick->conn_brick = prev;
+			break;
+		}
 		default:
 			MARS_ERR("#%d unknown command %d\n", sock->s_debug_nr, cmd.cmd_code);
 		}
