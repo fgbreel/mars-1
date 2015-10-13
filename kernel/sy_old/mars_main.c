@@ -563,6 +563,7 @@ enum {
 	CL_LOG,
 	CL_REPLAYSTATUS,
 	CL_DEVICE,
+	CL_REMDEV,
 	CL_MAXNR,
 };
 
@@ -594,6 +595,7 @@ struct mars_rotate {
 	struct mars_dent *syncstatus_dent;
 	struct timespec sync_finish_stamp;
 	struct if_brick *if_brick;
+	struct client_brick *remote_brick;
 	const char *fetch_path;
 	const char *fetch_peer;
 	const char *avoid_peer;
@@ -4364,15 +4366,173 @@ done:
 }
 
 static
+int make_dev_remote(void *buf, struct mars_dent *dent)
+{
+	struct mars_global *global = buf;
+	struct mars_dent *parent = dent->d_parent;
+	struct mars_rotate *rot;
+	char *remote;
+	char *primary = NULL;
+	char *devname = NULL;
+	char *status_path = NULL;
+	char *status_val = NULL;
+	char *client_path = NULL;
+	struct mars_brick *remote_brick;
+	struct mars_brick *dev_brick;
+	int switch_on = 0;
+	int status = -EINVAL;
+
+	if (!parent || !dent->new_link) {
+		MARS_ERR("nothing to do\n");
+		return -EINVAL;
+	}
+	rot = parent->d_private;
+	if (!rot || !rot->parent_path) {
+		MARS_DBG("nothing to do\n");
+		goto err;
+	}
+	if (strcmp(dent->d_rest, my_id())) {
+		MARS_DBG("nothing to do\n");
+		goto err;
+	}
+	rot->has_symlinks = true;
+
+	/* Go out of the way of the local device.
+	 */
+	if (rot->trans_brick &&
+	    !rot->replay_mode)
+		goto setup;
+
+	devname = brick_strdup(dent->new_link);
+	remote = strstr(devname, "@");
+	if (remote) {
+		primary = brick_strdup(remote + 1);
+		*remote = '\0';
+	}
+	if (!primary) {
+		primary = brick_strdup("(none)");
+		goto setup;
+	}
+	MARS_DBG("devname = '%s' primary = '%s'\n", devname, primary);
+
+	if (!global->global_power.button)
+		goto setup;
+
+	/* Check both the local and the remote attach switch.
+	 */
+	if (!_check_allow(global, dent->d_parent, "rattach"))
+		goto setup;
+	if (!__check_allow(global, dent->d_parent, "attach", primary))
+		goto setup;
+
+
+	/* Check whether designated primary is the correct one
+	 */
+	status_path = path_make("%s/primary", parent->d_path);
+	status_val = mars_readlink(status_path);
+	MARS_DBG("designated = '%s' primary = '%s'\n", status_val, primary);
+	if (strcmp(status_val, primary))
+		goto setup;
+
+
+	brick_string_free(status_path);
+	brick_string_free(status_val);
+
+	/* In addition, check actual primary
+	 */
+	status_path = path_make("%s/actual-%s/is-primary",
+				parent->d_path, primary);
+	status_val = mars_readlink(status_path);
+	status = kstrtoint(status_val, 10, &switch_on);
+	if (unlikely(status)) {
+		switch_on = 0;
+		goto setup;
+	}
+
+	switch_on = 1;
+
+setup:
+	MARS_DBG("switch_on = %d\n", switch_on);
+
+	if (!switch_on && !rot->remote_brick)
+		goto err;
+
+	client_path = path_make("%s/replay-%s@%s",
+				parent->d_path, primary, primary);
+
+	remote_brick =
+		make_brick_all(global,
+			       dent,
+			       _set_client_params,
+			       NULL,
+			       client_path,
+			       (const struct generic_brick_type *)&client_brick_type,
+			       (const struct generic_brick_type *[]){},
+			       switch_on || rot->if_brick ? 2 : -1,
+			       "%s",
+			       (const char *[]){},
+			       0,
+			       client_path);
+	rot->remote_brick = (void *)remote_brick;
+	if (remote_brick) {
+		remote_brick->kill_ptr = (void**)&rot->remote_brick;
+		/* When on, set the timeout to infinite.
+		 * This is necessary for prevention of IO errors reported to
+		 * filesystems like XFS. Some fs could run into problems when
+		 * other requests after the timeout could succeed again, e.g.
+		 * needing an xfs_repair (which is worse than hanging or
+		 * simple power loss).
+		 */
+		if (switch_on) {
+			remote_brick->power.io_timeout = -1;
+		} else {
+			remote_brick->power.io_timeout = 1;
+			remote_brick->killme = true;
+		}
+	} else {
+		switch_on = 0;
+	}
+	
+	dev_brick =
+		make_brick_all(global,
+			       dent,
+			       _set_if_params,
+			       rot,
+			       devname,
+			       (const struct generic_brick_type *)&if_brick_type,
+			       (const struct generic_brick_type *[]){(const struct generic_brick_type *)&client_brick_type},
+			       switch_on || (rot->if_brick && atomic_read(&rot->if_brick->open_count) > 0) ? 2 : -1,
+			       "%s/remdev-%s", 
+			       (const char *[]){client_path},
+			       1,
+			       parent->d_path,
+			       my_id());
+	rot->if_brick = (void *)dev_brick;
+	if (dev_brick) {
+		dev_brick->kill_ptr = (void**)&rot->if_brick;
+		if (!switch_on)
+			dev_brick->killme = true;
+	}
+
+err:
+	brick_string_free(status_path);
+	brick_string_free(status_val);
+	brick_string_free(client_path);
+	brick_string_free(primary);
+	brick_string_free(devname);
+	return status;
+}
+
+static
 int make_dev(void *buf, struct mars_dent *dent)
 {
 	struct mars_global *global = buf;
 	struct mars_dent *parent = dent->d_parent;
 	struct mars_rotate *rot = NULL;
 	struct mars_brick *dev_brick;
-	struct if_brick *_dev_brick;
+	char *remote;
 	bool switch_on;
-	int open_count = 0;
+	int open_count;
 	int status = 0;
 
 	if (!parent || !dent->new_link) {
@@ -4389,6 +4549,27 @@ int make_dev(void *buf, struct mars_dent *dent)
 		goto err;
 	}
 	rot->has_symlinks = true;
+	if (rot->remote_brick) {
+		MARS_DBG("nothing to do\n");
+		goto done;
+	}
+	status = _parse_args(dent, dent->new_link, 1);
+	if (unlikely(status < 0))
+		goto done;
+
+	remote = strstr(dent->d_argv[0], "@");
+	if (remote) {
+		/* Go out of the way of the remote device.
+		 * Only in case the corresponding client brick is missing,
+		 * we assume that we are responsible for an old remain
+		 * left from ourselves.
+		 */
+		switch_on = false;
+		if (!rot->remote_brick && rot->if_brick)
+			goto setup;
+		goto done;
+	}
+
 	if (!rot->trans_brick) {
 		MARS_DBG("transaction logger does not exist\n");
 		goto done;
@@ -4398,17 +4579,12 @@ int make_dev(void *buf, struct mars_dent *dent)
 		goto done;
 	}
 
-	status = _parse_args(dent, dent->new_link, 1);
-	if (status < 0) {
-		MARS_DBG("fail\n");
-		goto done;
-	}
-
 	switch_on =
 		(rot->if_brick && atomic_read(&rot->if_brick->open_count) > 0) ||
 		(rot->todo_primary &&
 		 !rot->trans_brick->replay_mode &&
 		 rot->trans_brick->power.led_on &&
+		 strcmp(dent->d_argv[0], "(none)") &&
 		 _check_allow(global, dent->d_parent, "attach"));
 	if (!global->global_power.button) {
 		switch_on = false;
@@ -4418,14 +4594,15 @@ int make_dev(void *buf, struct mars_dent *dent)
 		switch_on = false;
 	}
 
+setup:
 	dev_brick =
 		make_brick_all(global,
 			       dent,
 			       _set_if_params,
 			       rot,
 			       dent->d_argv[0],
-			       (const struct generic_brick_type*)&if_brick_type,
-			       (const struct generic_brick_type*[]){(const struct generic_brick_type*)&trans_logger_brick_type},
+			       (const struct generic_brick_type *)&if_brick_type,
+			       (const struct generic_brick_type *[]){(const struct generic_brick_type *)&trans_logger_brick_type},
 			       switch_on ? 2 : -1,
 			       "%s/device-%s", 
 			       (const char *[]){"%s/replay-%s"},
@@ -4445,18 +4622,11 @@ int make_dev(void *buf, struct mars_dent *dent)
 	}
 	dev_brick->kill_ptr = (void**)&rot->if_brick;
 	dev_brick->show_status = _show_brick_status;
-	_dev_brick = (void*)dev_brick;
-	open_count = atomic_read(&_dev_brick->open_count);
-#if 0
-	if (_dev_brick->has_closed) {
-		_dev_brick->has_closed = false;
-		MARS_INF("rotating logfile for '%s'\n", parent->d_name);
-		status = mars_power_button((void*)rot->trans_brick, false);
-		rot->relevant_log = NULL;
-	}
-#endif
 
 done:
+	open_count = 0;
+	if (rot->if_brick)
+		open_count = atomic_read(&rot->if_brick->open_count);
 	__show_actual(rot->parent_path, "open-count", open_count);
 	rot->is_primary =
 		rot->trans_brick &&
@@ -4523,8 +4693,8 @@ static int _make_direct(void *buf, struct mars_dent *dent)
 			       _set_bio_params,
 			       NULL,
 			       src_path,
-			       (const struct generic_brick_type*)&bio_brick_type,
-			       (const struct generic_brick_type*[]){},
+			       (const struct generic_brick_type *)&bio_brick_type,
+			       (const struct generic_brick_type *[]){},
 			       switch_on ? 2 : -1,
 			       "%s",
 			       (const char *[]){},
@@ -5881,6 +6051,17 @@ static const struct main_class main_classes[] = {
 		.cl_father = CL_RESOURCE,
 #ifdef RUN_DEVICE
 		.cl_forward = make_dev,
+#endif
+		.cl_backward = kill_dev,
+	},
+	[CL_REMDEV] = {
+		.cl_name = "remdev-",
+		.cl_len = 7,
+		.cl_type = 'l',
+		.cl_hostcontext = false,
+		.cl_father = CL_RESOURCE,
+#ifdef RUN_DEVICE
+		.cl_forward = make_dev_remote,
 #endif
 		.cl_backward = kill_dev,
 	},
