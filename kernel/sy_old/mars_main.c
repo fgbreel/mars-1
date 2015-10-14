@@ -997,10 +997,10 @@ done:
 }
 
 static
-int _check_allow(struct mars_global *global, struct mars_dent *parent, const char *name)
+int __check_allow(struct mars_global *global, struct mars_dent *parent, const char *name, const char *peer)
 {
 	int res = 0;
-	char *path = path_make("%s/todo-%s/%s", parent->d_path, my_id(), name);
+	char *path = path_make("%s/todo-%s/%s", parent->d_path, peer, name);
 
 	if (!path)
 		goto done;
@@ -1010,6 +1010,12 @@ int _check_allow(struct mars_global *global, struct mars_dent *parent, const cha
 done:
 	brick_string_free(path);
 	return res;
+}
+
+static inline
+int _check_allow(struct mars_global *global, struct mars_dent *parent, const char *name)
+{
+	return __check_allow(global, parent, name, my_id());
 }
 
 #define skip_part(s) _skip_part(s, ',', ':')
