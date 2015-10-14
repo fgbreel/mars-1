@@ -679,7 +679,14 @@ void _do_timeout(struct client_output *output, struct list_head *anchor, int *ro
 	if (list_empty(anchor))
 		return;
 
-	if (!mars_net_is_alive)
+	/* When io_timeout is 0, use the global default.
+	 * When io_timeout is negative, no timeout will occur.
+	 * Exeception: when the brick is forcefully shutting down.
+	 */
+	if (!io_timeout)
+		io_timeout = global_net_io_timeout;
+
+	if (!mars_net_is_alive || !brick->power.button)
 		force = true;
 	
 	if (!force && io_timeout <= 0) {
