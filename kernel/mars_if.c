@@ -884,7 +884,7 @@ loff_t if_get_capacity(struct if_brick *brick)
 
 		status = GENERIC_INPUT_CALL(input, mars_get_info, &info);
 		if (unlikely(status < 0)) {
-			MARS_ERR("cannot get device info, status=%d\n", status);
+			MARS_WRN("cannot get device info, status=%d\n", status);
 			return 0;
 		}
 		MARS_INF("determined default capacity: %lld bytes\n", info.current_size);
@@ -899,7 +899,6 @@ void if_set_capacity(struct if_input *input, loff_t capacity)
 	CHECK_PTR(input->disk, done);
 	CHECK_PTR(input->disk->disk_name, done);
 	MARS_INF("new capacity of '%s': %lld bytes\n", input->disk->disk_name, capacity);
-	input->capacity = capacity;
 	set_capacity(input->disk, capacity >> 9);
 	if (likely(input->bdev && input->bdev->bd_inode)) {
 		i_size_write(input->bdev->bd_inode, capacity);
@@ -925,6 +924,7 @@ static int if_switch(struct if_brick *brick)
 		capacity = if_get_capacity(brick);
 		if (capacity > 0 && capacity != input->capacity) {
 			MARS_INF("changing capacity from %lld to %lld\n", (long long)input->capacity, (long long)capacity);
+			input->capacity = capacity;
 			if_set_capacity(input, capacity);
 		}
 	}
@@ -933,9 +933,16 @@ static int if_switch(struct if_brick *brick)
 	if (brick->power.button && brick->power.led_off) {
 		loff_t capacity;
 
-		mars_power_led_off((void*)brick,  false);
 		brick->say_channel = get_binding(current);
 
+		capacity = if_get_capacity(brick);
+		MARS_INF("capacity is %lld\n", (long long)capacity);
+		if (capacity > 0) {
+			input->capacity = capacity;
+			mars_power_led_off((void*)brick,  false);
+		}
+	}
+	if (brick->power.button && !brick->power.led_on && !brick->power.led_off) {
 		status = -ENOMEM;
 		q = blk_alloc_queue(GFP_MARS);
 		if (!q) {
@@ -961,10 +968,11 @@ static int if_switch(struct if_brick *brick)
 		snprintf(disk->disk_name, sizeof(disk->disk_name),  "mars/%s", brick->brick_name);
 		disk->private_data = input;
 		input->disk = disk;
-		capacity = if_get_capacity(brick);
-		MARS_DBG("created device name %s, capacity=%lld\n", disk->disk_name, capacity);
-		if_set_capacity(input, capacity);
-		
+		MARS_DBG("created device name %s, capacity=%lld\n",
+			 disk->disk_name, input->capacity);
+		if_set_capacity(input, input->capacity);
+
+
 		blk_queue_make_request(q, if_make_request);
 #ifdef USE_MAX_SECTORS
 #ifdef MAX_SEGMENT_SIZE
@@ -1012,7 +1020,7 @@ static int if_switch(struct if_brick *brick)
 #endif
 		MARS_DBG("queue_lock\n");
 		q->queue_lock = &input->req_lock; // needed!
-		
+
 		input->bdev = bdget(MKDEV(disk->major, minor));
 		/* we have no partitions. we contain only ourselves. */
 		input->bdev->bd_contains = input->bdev;

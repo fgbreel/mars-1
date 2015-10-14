@@ -390,7 +390,6 @@ static int client_get_info(struct client_output *output, struct mars_info *info)
 	long io_timeout = _compute_timeout(brick);
 	int status;
 
-	output->got_info = false;
 	if (!brick->power.led_on)
 		goto timeout;
 
@@ -398,9 +397,11 @@ static int client_get_info(struct client_output *output, struct mars_info *info)
 	wake_up_interruptible_all(&output->bundle.sender_event);
 	
 	wait_event_interruptible_timeout(output->info_event, output->got_info, io_timeout * HZ);
+
 timeout:
 	status = -ETIME;
 	if (output->got_info && info) {
+		output->got_info = false;
 		memcpy(info, &output->info, sizeof(*info));
 		status = 0;
 	}
