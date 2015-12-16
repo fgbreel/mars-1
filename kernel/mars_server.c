@@ -561,11 +561,13 @@ int handler_thread(void *data)
 			break;
 		case CMD_CONNECT_LOGGER:
 		{
+			struct sockaddr peer_addr = {};
+			int peer_addr_len = sizeof(peer_addr);
 			struct mars_global *global = mars_global;
-			struct mars_brick *prev;
+			struct trans_logger_brick *prev;
 			const char *path = cmd.cmd_str1;
 
-			prev = mars_find_brick(global, (const struct generic_brick_type *)&trans_logger_brick_type, path);
+			prev = (void *)mars_find_brick(global, (const struct generic_brick_type *)&trans_logger_brick_type, path);
 			status = -ENOENT;
 			if (!prev) {
 				MARS_WRN("not found '%s'\n", path);
@@ -575,18 +577,23 @@ int handler_thread(void *data)
 				MARS_WRN("dead '%s'\n", path);
 				break;
 			}
-			status = -EBUSY;
-			// TODO: locking
-			if (prev->outputs[0]->nr_connected) {
-				MARS_WRN("try to connect to '%s'\n", path);
+			status = kernel_getpeername(sock->s_socket, &peer_addr, &peer_addr_len);
+			((struct sockaddr_in *)&peer_addr)->sin_port = 0;
+			if (prev->outputs[0]->nr_connected &&
+			    (status < 0 || memcmp(&prev->peer_addr, &peer_addr, peer_addr_len))) {
+				MARS_WRN("invalid additional connect to '%s' from a different address\n", path);
+				status = -EBUSY;
 				break;
 			}
-
+			memset(&prev->peer_addr, 0, sizeof(prev->peer_addr));
+			if (status >= 0)
+				memcpy(&prev->peer_addr, &peer_addr, peer_addr_len);
+			
 			status = generic_connect((void*)brick->inputs[0], (void*)prev->outputs[0]);
 			if (unlikely(status < 0)) {
 				MARS_ERR("#%d cannot connect to '%s'\n", sock->s_debug_nr, path);
 			}
-			brick->conn_brick = prev;
+			brick->conn_brick = (void *)prev;
 			break;
 		}
 		default:

@@ -29,6 +29,7 @@
 #define LOGGER_QUEUES         4
 
 #include <linux/time.h>
+#include <net/sock.h>
 
 #include "mars.h"
 #include "lib_log.h"
@@ -193,6 +194,7 @@ struct trans_logger_brick {
 	struct task_struct *thread;
 	wait_queue_head_t worker_event;
 	wait_queue_head_t caller_event;
+	struct sockaddr peer_addr;
 	// statistics
 	atomic64_t shadow_mem_used;
 	atomic_t replay_count;
