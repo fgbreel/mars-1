@@ -644,6 +644,19 @@ sub check_id_list {
 
 # semantic checks
 
+sub check_reachable {
+  my ($cmd, $res, $peer) = @_;
+  my $start_time = mars_time();
+  my $delta = $timeout > 0 ? $timeout : 30;
+  my %status = get_alive_links($res, "time", $peer);
+  my $diff = $start_time - $status{$peer};
+  my $ok = ($diff <= $delta);
+  if (!$ok) {
+    lwarn "Peer '$peer' is not reachable since $diff seconds.\n";
+    ldie "Aborting command '$cmd'" if ($cmd && !$force);
+  }
+}
+
 sub check_res {
   my $res = shift;
   wait_cluster("wait-cluster", "all", "*", 0) unless -d "$mars/resource-$res";
