@@ -2394,6 +2394,7 @@ sub leave_res_phase1 {
   my $vstatus = "$mars/resource-$res/verifystatus-$host";
   _create_delete($vstatus) if -l $vstatus;
   _create_delete("$mars/resource-$res/device-$host");
+  _create_delete("$mars/resource-$res/remdev-$host");
   _create_delete("$mars/resource-$res/actsize-$host");
   foreach my $dir (glob("$mars/resource-$res/*-$host/")) {
     foreach my $tmp (glob("${dir}/*")) {
@@ -2463,6 +2464,59 @@ sub delete_res {
   set_link("1", "$mars/resource-$res/work-$host");
   finish_links();
   _wait_delete();
+}
+
+sub assign_remdev {
+  my ($cmd, $res, $peer) = @_;
+  my $devname = $res;
+  if ($peer =~ m/^(.*)@(.*)$/p) {
+    $devname = $1 if $1;
+    $peer = $2;
+  }
+  check_id($peer, 1);
+  check_id($devname);
+  check_res_member($cmd, $res, $peer);
+  check_reachable($cmd, $res, $peer);
+
+  my $primary = _get_designated_primary($res);
+  if ($primary && $primary ne "(none)") {
+    check_reachable($cmd, $res, $primary);
+  }
+
+  my $old_peer = get_link("$mars/resource-$res/device-$peer");
+  if ($old_peer =~ m/^(.*)@(.*)$/p) {
+    $old_peer = $2;
+    check_reachable($cmd, $res, $old_peer);
+  } else {
+    $old_peer = $peer;
+  }
+  # check for conflicts
+  if ($old_peer ne $host) {
+    my $open_count_path = "$mars/resource-$res/actual-$old_peer/open-count";
+    my $device_in_use = get_link($open_count_path, 1);
+    if ($device_in_use) {
+      lwarn "Device is $device_in_use times in use on host '$old_peer'\n";
+      ldie "First you must umount/close the device (on host '$old_peer')\n" unless $force;
+      ldie "Cannot run '$cmd': device is in use\n" unless $force;
+      lwarn "Forcing '$cmd' during operations may harm the actuality of your data.\n";
+      lwarn "You have been warned, continuing at your own risk.\n";
+    }
+    my $old_attach_path = "$mars/resource-$res/todo-$old_peer/rattach";
+    set_link("0", $old_attach_path) if -l $old_attach_path;
+  }
+
+  unless (-d "$mars/resource-$res/todo-$host") {
+    mkdir("$mars/resource-$res/todo-$host");
+    mkdir("$mars/resource-$res/actual-$host");
+  }
+
+  if ($peer eq $host) {
+    set_link($devname, "$mars/resource-$res/device-$host");
+  } else {
+    set_link("$devname\@$peer", "$mars/resource-$res/remdev-$host");
+    set_link("$devname\@$host", "$mars/resource-$res/device-$peer");
+    set_link("1", "$mars/resource-$res/todo-$host/rattach");
+  }
 }
 
 sub logrotate_res {
@@ -5254,6 +5308,15 @@ my %cmd_table =
        "Please read the PDF manual on potential consequences.",
        \&delete_res,
       ],
+   "assign-remdev"
+   => [
+       "usage: assign-remdev <resource_name> <primary_host>",
+       "usage: assign-remdev <resource_name> <devicename\@primary_host>",
+       "Let the remote device appear on the local host $host whenever",
+       "the primary_host actually becomes primary.",
+       "Hint: run this on the target host where the device should appear.",
+       \&assign_remdev,
+      ],
    "set-connect-pref-list"
    => [
        "verbose 2",
@@ -6137,7 +6200,7 @@ sub do_one_res {
   if ($cmd =~ m/^cat|-file$|-list$|-link$|-value$/) { # no resource argument
   } elsif (!$checked_res{"$cmd$res"}) {
     $res = check_res($res) unless (!$res || $cmd =~ m/^(join|create|merge|leave|wait)-cluster|(create|join)-resource|show/);
-    check_res_member($cmd, $res, $host) unless (!$res || $cmd =~ m/^(join|create|delete)-(cluster|resource)|^(merge|leave|wait)-cluster|^log-purge|^show|^view/);
+    check_res_member($cmd, $res, $host) unless (!$res || $cmd =~ m/^(join|create|delete)-(cluster|resource)|^(merge|leave|wait)-cluster|^log-purge|^assign|^show|^view/);
     detect_splitbrain($res, 1);
     $checked_res{"$cmd$res"} = 1;
   }
@@ -6153,13 +6216,16 @@ sub do_all_res {
   my $cmd = shift;
   my $res = shift;
   if ($res eq "all" && $cmd !~ m/show|cat|cluster|set-link|delete-file/) {
-    ldie "Cannot combine command '$cmd' with 'all' existing resources - you must explicitly name a single new resource\n" if $cmd =~ m/create|join/;
+    ldie "Cannot combine command '$cmd' with 'all' existing resources - you must explicitly name a single new resource\n" if $cmd =~ m/create|join|assign-remdev/;
     my $any_success = 0;
     my $any_member = 0;
     my $total_count = scalar(get_all_peers());
     call_hook(!$force, "all-pre", $cmd, "all", @_);
     foreach $res (glob("$mars/resource-*")) {
-      next unless -e "$res/data-$host";
+      if (!-e "$res/data-$host" &&
+	  ($cmd !~ m/-device$/ || !-l "$res/remdev-$host")) {
+	next;
+      }
       $any_member++;
       $res =~ s/^.*\/resource-(.*)$/$1/;
       next if defined($skip_res{$res});
