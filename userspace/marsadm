@@ -697,22 +697,23 @@ sub check_sizes {
 }
 
 sub check_res_member {
-  my ($cmd, $res) = @_;
-  if (! -l "$mars/resource-$res/data-$host") {
-    if (-l "$mars/resource-$res/replay-$host") {
-      lwarn "Resource '$res' seems to have been destroyed.\n";
-      lwarn "Nevertheless, a replay link exists for host '$host'.\n";
-      lwarn "This can happen after 'leave-resource --host=$host' while host $host was active.\n";
+  my ($cmd, $res, $peer) = @_;
+  $peer = $host unless $peer;
+  if (! -l "$mars/resource-$res/data-$peer") {
+    if (-l "$mars/resource-$res/replay-$peer") {
+      lwarn "Resource '$res' seems to have been destroyed on host '$peer'.\n";
+      lwarn "Nevertheless, a replay link exists for host '$peer'.\n";
+      lwarn "This can happen after 'leave-resource --host=$peer' while host $peer was active.\n";
       lwarn "mars-manual.pdf forbids any usage of such a resource _strongly_.\n";
-      lwarn "In order to finally remove this resource from $host, use the\n";
+      lwarn "In order to finally remove this resource from $peer, use the\n";
       lwarn "command 'marsadm leave-resource --force $res'\n";
     } else {
-      lwarn "Sorry, I have not yet joined to resource '$res'\n";
+      lwarn "Sorry, host '$peer' has not yet joined to resource '$res'\n";
     }
     ldie "Refusing work on resource name '$res'\n" unless $force;
     lwarn "Running '$cmd' is dangerous, continuing on your own risk\n" unless $cmd eq "leave-resource";
   }
-  check_sizes($res, $host);
+  check_sizes($res, $peer);
 }
 
 sub _sync_finished {
@@ -1778,7 +1779,7 @@ sub is_module_loaded {
 
 sub set_connect_pref_list {
   my ($cmd, $res, $list) = @_;
-  check_res_member($cmd, $res);
+  check_res_member($cmd, $res, $host);
   my $dst = "$mars/resource-$res/connect-$host";
   if ($cmd =~ m/^get-/) {
     my $value = get_link($dst);
@@ -6079,7 +6080,7 @@ sub do_one_res {
   if ($cmd =~ m/^cat|-file$|-list$|-link$|-value$/) { # no resource argument
   } elsif (!$checked_res{"$cmd$res"}) {
     $res = check_res($res) unless (!$res || $cmd =~ m/^(join|create|merge|leave|wait)-cluster|(create|join)-resource|show/);
-    check_res_member($cmd, $res) unless (!$res || $cmd =~ m/^(join|create|delete)-(cluster|resource)|^(merge|leave|wait)-cluster|^log-purge|^show|^view/);
+    check_res_member($cmd, $res, $host) unless (!$res || $cmd =~ m/^(join|create|delete)-(cluster|resource)|^(merge|leave|wait)-cluster|^log-purge|^show|^view/);
     detect_splitbrain($res, 1);
     $checked_res{"$cmd$res"} = 1;
   }
