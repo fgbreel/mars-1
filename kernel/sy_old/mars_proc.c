@@ -285,15 +285,24 @@ struct ctl_table io_tuning_table[] = {
 	{}
 };
 
+#define TCP_TUNING_ENTRIES(VAR)						\
+	INT_ENTRY("ip_tos",          (VAR)->ip_tos,          0600),	\
+	INT_ENTRY("tcp_window_size", (VAR)->tcp_window_size, 0600),	\
+	INT_ENTRY("tcp_nodelay",     (VAR)->tcp_nodelay,     0600),	\
+	INT_ENTRY("tcp_timeout",     (VAR)->tcp_timeout,     0600),	\
+	INT_ENTRY("tcp_keepcnt",     (VAR)->tcp_keepcnt,     0600),	\
+	INT_ENTRY("tcp_keepintvl",   (VAR)->tcp_keepintvl,   0600),	\
+	INT_ENTRY("tcp_keepidle",    (VAR)->tcp_keepidle,    0600),	\
+
 static
-struct ctl_table tcp_tuning_table[] = {
-	INT_ENTRY("ip_tos",          default_tcp_params.ip_tos,          0600),
-	INT_ENTRY("tcp_window_size", default_tcp_params.tcp_window_size, 0600),
-	INT_ENTRY("tcp_nodelay",     default_tcp_params.tcp_nodelay,     0600),
-	INT_ENTRY("tcp_timeout",     default_tcp_params.tcp_timeout,     0600),
-	INT_ENTRY("tcp_keepcnt",     default_tcp_params.tcp_keepcnt,     0600),
-	INT_ENTRY("tcp_keepintvl",   default_tcp_params.tcp_keepintvl,   0600),
-	INT_ENTRY("tcp_keepidle",    default_tcp_params.tcp_keepidle,    0600),
+struct ctl_table repl_tuning_table[] = {
+	TCP_TUNING_ENTRIES(&repl_tcp_params)
+	{}
+};
+
+static
+struct ctl_table remdev_tuning_table[] = {
+	TCP_TUNING_ENTRIES(&remdev_tcp_params)
 	{}
 };
 
@@ -414,9 +423,15 @@ struct ctl_table mars_table[] = {
 	},
 	{
 		_CTL_NAME
-		.procname	= "tcp_tuning",
+		.procname	= "tcp_tuning_repl",
 		.mode		= 0500,
-		.child = tcp_tuning_table,
+		.child = repl_tuning_table,
+	},
+	{
+		_CTL_NAME
+		.procname	= "tcp_tuning_remdev",
+		.mode		= 0500,
+		.child = remdev_tuning_table,
 	},
 	{}
 };

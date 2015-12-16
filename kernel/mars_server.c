@@ -884,7 +884,7 @@ static int _server_thread(void *data)
 			continue;
 		}
 
-		status = mars_accept_socket(&handler_socket, my_socket);
+		status = mars_accept_socket(&handler_socket, my_socket, &remdev_tcp_params);
 		if (unlikely(status < 0 || !mars_socket_is_alive(&handler_socket))) {
 			brick_msleep(500);
 			if (status == -EAGAIN)
@@ -995,7 +995,7 @@ int __init init_mars_server(void)
 			return status;
 		}
 
-		status = mars_create_socket(&server_socket[i], &sockaddr, true);
+		status = mars_create_socket(&server_socket[i], &sockaddr, &remdev_tcp_params, true);
 		if (unlikely(status < 0)) {
 			MARS_ERR("could not create server socket %d, status = %d\n", i, status);
 			exit_mars_server();
