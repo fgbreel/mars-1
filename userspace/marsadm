@@ -626,8 +626,11 @@ sub check_id {
   if (defined($must_exist) && $must_exist) {
     my $ip_path = "$mars/ips/ip-$str";
     unless (get_link($ip_path, 1)) {
-      ldie "host '$str' does not exist in $mars/ips/\n" if !$force;
-      lwarn "host '$str' does not exist in $mars/ips/ - hopefully you know what you are doing via --force\n";
+      lwarn "Host '$str' does not exist in $mars/ips/\n";
+      lwarn "If the hostname is correct, you must first run 'join-cluster' on host '$str'.\n" if !$force;
+      ldie "Cannot continue on bad hostname.\n" if !$force;
+      lwarn "Using non-existing hostnames is a bad idea in general.\n";
+      lwarn "Hopefully you know what you are doing via --force\n";
     }
   }
 }
