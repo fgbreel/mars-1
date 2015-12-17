@@ -4384,6 +4384,10 @@ int make_dev(void *buf, struct mars_dent *dent)
 		MARS_DBG("nothing to do\n");
 		goto err;
 	}
+	if (strcmp(dent->d_rest, my_id())) {
+		MARS_DBG("nothing to do\n");
+		goto err;
+	}
 	rot->has_symlinks = true;
 	if (!rot->trans_brick) {
 		MARS_DBG("transaction logger does not exist\n");
@@ -5873,7 +5877,7 @@ static const struct main_class main_classes[] = {
 		.cl_name = "device-",
 		.cl_len = 7,
 		.cl_type = 'l',
-		.cl_hostcontext = true,
+		.cl_hostcontext = false,
 		.cl_father = CL_RESOURCE,
 #ifdef RUN_DEVICE
 		.cl_forward = make_dev,
