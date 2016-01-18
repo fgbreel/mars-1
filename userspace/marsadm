@@ -4581,7 +4581,8 @@ my %complex_macros =
    .  "}",
 
    "default-global"
-   => "%call{comminfo}",
+   => "===\n"
+   .  "%call{deviceinfo}%call{comminfo}",
 
    "1and1"
    => "%if{%{res}}{"
@@ -4595,6 +4596,24 @@ my %complex_macros =
    .    "%call{resource-errors-1and1}"
    .  "}{"
    .    "%the-pretty-global-msg{}"
+   .  "}",
+
+   "deviceinfo"
+   => "%foreach-glob{/mars/resource-*/device-${host} /mars/resource-*/remdev-${host}}{resource}{"
+   .    "%let{type}{%if{%match{%{resource}}{/remdev-}}{Remote}{Local}}"
+   .    "%let{resdir}{%subst{%{resource}}{/[^/]*\$}{}}"
+   .    "%let{res}{%subst{%{resdir}}{/mars/resource-}{}}"
+   .    "%let{device}{%readlink{%{resource}}}"
+   .    "%let{devname}{%subst{%{device}}{@.*}{}}"
+   .    "%let{present}{%and{%-b{/dev/mars/%{devname}}}{%xor{%eq{%{type}}{Local}}{%remdev-present{}}}}"
+   .    "%let{direction}{%if{%and{%-e{%subst{%{resource}}{/device-}{/data-}}}{%not{%{present}}}}{exported_to}{imported_from}}"
+   .    "%let{location}{%subst{%{device}}{\@}{ %{direction} }}"
+   .    "%{type}Device %{location}%if{%ne{%{devname}}{%{res}}}{ Resource %{res}}"
+   .    "%elsif{%{present}}{"
+   .      " Present"
+   .    "}{%eq{%{direction}}{imported_from}}{"
+   .      " NotPresent"
+   .    "}\n"
    .  "}",
 
    "diskstate"
