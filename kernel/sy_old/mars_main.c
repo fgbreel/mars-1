@@ -4076,13 +4076,15 @@ int make_log_finalize(struct mars_global *global, struct mars_dent *dent)
 				!_check_allow(global, parent, "attach") ;
 		} else {
 			do_stop =
-				!rot->if_brick &&
-				!rot->is_primary &&
+				trans_brick->outputs[0]->nr_connected <= 0 &&
 				(!rot->todo_primary ||
 				 !_check_allow(global, parent, "attach"));
 		}
 
-		MARS_DBG("replay_mode = %d replay_code = %d is_primary = %d do_stop = %d\n", trans_brick->replay_mode, trans_brick->replay_code, rot->is_primary, (int)do_stop);
+		MARS_DBG("replay_mode = %d replay_code = %d is_primary = %d nr_connected = %d do_stop = %d\n",
+			 trans_brick->replay_mode, trans_brick->replay_code,
+			 trans_brick->outputs[0]->nr_connected,
+			 rot->is_primary, (int)do_stop);
 
 		if (do_stop) {
 			status = _stop_trans(rot, parent->d_path);
@@ -4453,7 +4455,9 @@ int make_dev(void *buf, struct mars_dent *dent)
 done:
 	__show_actual(rot->parent_path, "open-count", open_count);
 	rot->is_primary =
-		rot->if_brick && !rot->if_brick->power.led_off;	
+		rot->trans_brick &&
+		rot->trans_brick->power.led_on &&
+		!rot->trans_brick->replay_mode;
 	_show_primary(rot, parent);
 
 	if (open_count != rot->old_open_count) {
