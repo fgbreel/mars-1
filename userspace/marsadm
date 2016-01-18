@@ -3687,13 +3687,18 @@ sub eval_fn {
       }
       return $number;
     }
-    if (/^([~!]|not)$/) { # unary operators
+    if (/^([~!]|not|-[rwxoRWXOezsfdlpSbctugkTBMAC])$/) { # unary operators
       my $op = $1;
       $op = "!" if $op eq "not";
       my $number = parse_macro($arg1, $env);
       $_ = $op;
       if (/^~$/) { return ~$number; }
       if (/^!$/) { return !$number; }
+      if (/^-/) {
+	my $result = eval "$op \"$number\"";
+	return "" unless defined($result);
+	return $result;
+      }
       ldie "bad unary operator '$op'";
     }
     # string functions
