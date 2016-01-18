@@ -4713,21 +4713,22 @@ my %complex_macros =
    .  "}{None}",
 
    "role"
-   => "%if{%disk-present{}}{"
+   => "%let{remote}{%if{%match{%get-device{}}{\@}}{ForRemote}{}}"
+   .  "%if{%disk-present{}}{"
    .    "%if{%todo-primary{}}{"
    .      "%if{%is-primary{}}{"
-   .        "Primary"
+   .        "Primary%{remote}"
    .      "}{"
-   .        "NotYetPrimary"
+   .        "NotYetPrimary%{remote}"
    .      "}"
    .    "}{"
    .      "%if{%is-primary{}}{"
-   .        "RemainsPrimary"
+   .        "RemainsPrimary%{remote}"
    .      "}{"
-   .        "Secondary"
+   .        "Secondary%{remote}"
    .      "}"
    .    "}"
-   .  "}{None}",
+   .  "}{None%{remote}}",
 
    "role-1and1"
    => "%if{%disk-present{}}{"
