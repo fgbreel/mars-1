@@ -58,8 +58,10 @@ int mars_limit(struct mars_limiter *lim, int amount)
 		 * They will intentionally wrap around.
 		 * Userspace must take care of that.
 		 */
-		lim->lim_total_ops++;
-		lim->lim_total_sum += amount;
+		if (likely(amount > 0)) {
+			lim->lim_total_amount += amount;
+			lim->lim_total_ops++;
+		}
 
 		/* Only use incremental accumulation at repeated calls, but
 		 * never after longer pauses.
@@ -68,26 +70,47 @@ int mars_limit(struct mars_limiter *lim, int amount)
 			   window < (long long)lim->lim_max_window * (LIMITER_TIME_RESOLUTION / 1000))) {
 			long long rate_raw;
 			int rate;
+			int max_rate;
 			
 			/* Races are possible, but taken into account.
 			 * There is no real harm from rarely lost updates.
 			 */
 			if (likely(amount > 0)) {
-				lim->lim_accu += amount;
-				lim->lim_cumul += amount;
-				lim->lim_count++;
+				lim->lim_amount_accu += amount;
+				lim->lim_amount_cumul += amount;
+				lim->lim_ops_accu++;
+				lim->lim_ops_cumul++;
 			}
-			
-			rate_raw = lim->lim_accu * LIMITER_TIME_RESOLUTION / window;
+
+			/* compute amount values */
+			rate_raw = lim->lim_amount_accu * LIMITER_TIME_RESOLUTION / window;
 			rate = rate_raw;
 			if (unlikely(rate_raw > INT_MAX)) {
 				rate = INT_MAX;
 			}
-			lim->lim_rate = rate;
+			lim->lim_amount_rate = rate;
 			
-			// limit exceeded?
-			if (lim->lim_max_rate > 0 && rate > lim->lim_max_rate) {
-				int this_delay = (window * rate / lim->lim_max_rate - window) / (LIMITER_TIME_RESOLUTION / 1000);
+			/* amount limit exceeded? */
+			max_rate = lim->lim_max_amount_rate;
+			if (max_rate > 0 && rate > max_rate) {
+				int this_delay = (window * rate / max_rate - window) / (LIMITER_TIME_RESOLUTION / 1000);
+				// compute maximum
+				if (this_delay > delay && this_delay > 0)
+					delay = this_delay;
+			}
+
+			/* compute ops values */
+			rate_raw = lim->lim_ops_accu * LIMITER_TIME_RESOLUTION / window;
+			rate = rate_raw;
+			if (unlikely(rate_raw > INT_MAX)) {
+				rate = INT_MAX;
+			}
+			lim->lim_ops_rate = rate;
+			
+			/* ops limit exceeded? */
+			max_rate = lim->lim_max_ops_rate;
+			if (max_rate > 0 && rate > max_rate) {
+				int this_delay = (window * rate / max_rate - window) / (LIMITER_TIME_RESOLUTION / 1000);
 				// compute maximum
 				if (this_delay > delay && this_delay > 0)
 					delay = this_delay;
@@ -97,18 +120,29 @@ int mars_limit(struct mars_limiter *lim, int amount)
 			 */
 			window -= lim->lim_min_window * (LIMITER_TIME_RESOLUTION / 1000);
 			if (window > 0) {
-				long long used_up = (long long)lim->lim_rate * window / LIMITER_TIME_RESOLUTION;
+				long long used_up = (long long)lim->lim_amount_rate * window / LIMITER_TIME_RESOLUTION;
 				if (used_up > 0) {
 					lim->lim_stamp += window;
-					lim->lim_accu -= used_up;
-					if (unlikely(lim->lim_accu < 0))
-						lim->lim_accu = 0;
+					lim->lim_amount_accu -= used_up;
+					if (unlikely(lim->lim_amount_accu < 0))
+						lim->lim_amount_accu = 0;
+				}
+				used_up = (long long)lim->lim_ops_rate * window / LIMITER_TIME_RESOLUTION;
+				if (used_up > 0) {
+					lim->lim_stamp += window;
+					lim->lim_ops_accu -= used_up;
+					if (unlikely(lim->lim_ops_accu < 0))
+						lim->lim_ops_accu = 0;
 				}
 			}
 		} else { // reset, start over with new measurement cycle
-			lim->lim_accu = amount;
+			if (unlikely(amount < 0))
+				amount = 0;
+			lim->lim_ops_accu = 1;
+			lim->lim_amount_accu = amount;
 			lim->lim_stamp = now - lim->lim_min_window * (LIMITER_TIME_RESOLUTION / 1000);
-			lim->lim_rate = 0;
+			lim->lim_ops_rate = 0;
+			lim->lim_amount_rate = 0;
 		}
 		lim = lim->lim_father;
 	}
