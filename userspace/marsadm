@@ -4070,7 +4070,7 @@ sub eval_fn {
       my $lnk = $$env{"resdir"} . "/actual-" . $$env{"host"} . "/replay-code";
       return get_link($lnk, 2);
     }
-    if (/^(sync|fetch|replay|work)[-_]?(rate|ops[-_]?rate|amount[-_]?rate|remain)$/) {
+    if (/^(device|sync|fetch|replay|work)[-_]?(rate|ops[-_]?rate|amount[-_]?rate|remain)$/) {
       my $what = $1;
       my $select = $2;
       if ($what eq "work") {
@@ -4090,6 +4090,7 @@ sub eval_fn {
       $name =~ s/-/_/;
       my %names =
 	(
+	 "device" => "if",
 	 "sync"   => "sync",
 	 "fetch"  => "file",
 	 "replay" => "replay",
@@ -5087,6 +5088,8 @@ my %trivial_globs =
    "{sync,fetch,replay,work}-{rest,{almost-,threshold-,}reached,percent,permille,vector}"
    => "",
    "{sync,fetch,replay}-{ops-rate,amount-rate,rate,remain}"
+   => "",
+   "device-{ops-rate,amount-rate,rate}"
    => "",
    "replay-basenr"
    => "",
