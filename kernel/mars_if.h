@@ -24,6 +24,8 @@
 #ifndef MARS_IF_H
 #define MARS_IF_H
 
+#include "lib_limiter.h"
+
 #include <linux/semaphore.h>
 
 #define HT_SHIFT 6 //????
@@ -110,6 +112,7 @@ struct if_brick {
 	bool skip_sync;
 	// inspectable
 	atomic_t open_count;
+	struct mars_limiter io_limiter;
 	// private
 	struct semaphore switch_sem;
 	struct say_channel *say_channel;
