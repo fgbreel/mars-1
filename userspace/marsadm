@@ -3983,7 +3983,13 @@ sub eval_fn {
       $result = "" unless defined($result);
       $result = "/dev/mars/$result" if ($what eq "device" && $result !~ m:^/:);
       if ($result) {
-	$result = -b $result;
+	if ($result =~ m/^(.+)\@(.+)$/) {
+	  my $peer = $2;
+	  my $lnk = $$env{"resdir"} . "/actual-$peer/is-$what-remote";
+	  my $result = get_link($lnk);
+	} else {
+	  $result = -b $result;
+	}
 	$result = "0" unless defined($result);
       }
       return $result;
