@@ -875,6 +875,17 @@ sub check_status {
   lprint "OK, '$path' has acceptable value '$link'\n";
 }
 
+sub _is_mars_device_present {
+  my ($cmd, $res, $name) = @_;
+  if ($name =~ m/^(.*?)\@(.*)$/) {
+    my $peer = $2;
+    my $lnk = get_link("$mars/resource-$res/actual-$peer/is-device-local", 1);
+    return $lnk;
+  }
+  my $dev = "/dev/mars/$name";
+  return -b $dev;
+}
+
 sub check_mars_device {
   my ($cmd, $res, $wait, $inv) = @_;
   my $name = get_link("$mars/resource-$res/device-$host", $inv);
@@ -882,7 +893,7 @@ sub check_mars_device {
   my $backoff = 1;
   my $round = 0;
   if ($inv) {
-    while (-b $dev) {
+    while (_is_mars_device_present($cmd, $res, $name)) {
       ldie "cannot execute $cmd: device '$dev' has not yet disappeared\n" if !$wait;
       lwarn "device '$dev' has not yet disappeared\n";
       sleep_timeout($backoff);
@@ -892,13 +903,13 @@ sub check_mars_device {
 	$backoff++;
       }
     }
-    lprint "device '$dev' is no longer present\n" unless -b $dev;
+    lprint "device '$dev' is no longer present\n" unless _is_mars_device_present($cmd, $res, $name);
     return;
   }
   # !$inv
   my $primary = _get_designated_primary($res);
   ldie "for operation '$cmd', I should be the designated primary\n" unless $primary eq $host;
-  while (! -e $dev) {
+  while (!_is_mars_device_present($cmd, $res, $name)) {
     my $text = get_error_text($cmd, $res);
     lprint $text if $text;
     ldie "aborting due to errors\n" if $text =~ m/error/mi;
@@ -911,7 +922,7 @@ sub check_mars_device {
       $backoff++;
     }
   }
-  lprint "device '$dev' is present\n" if -b $dev;
+  lprint "device '$dev' is present\n" if _is_mars_device_present($cmd, $res, $name);
 }
 
 sub check_userspace {
