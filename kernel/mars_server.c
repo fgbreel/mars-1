@@ -577,6 +577,14 @@ int handler_thread(void *data)
 				MARS_WRN("dead '%s'\n", path);
 				break;
 			}
+			if (!prev->power.led_on) {
+				MARS_WRN("not working '%s'\n", path);
+				break;
+			}
+			if (prev->replay_mode) {
+				MARS_WRN("not primary '%s'\n", path);
+				break;
+			}
 			status = kernel_getpeername(sock->s_socket, &peer_addr, &peer_addr_len);
 			((struct sockaddr_in *)&peer_addr)->sin_port = 0;
 			if (prev->outputs[0]->nr_connected &&
