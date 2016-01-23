@@ -4377,6 +4377,8 @@ void _show_dev(struct mars_rotate *rot)
 		open_count = atomic_read(&rot->if_brick->open_count);
 	}
 	__show_actual(rot->parent_path, "open-count", open_count);
+	_show_actual(rot->parent_path, "is-device-local", rot->if_brick && rot->if_brick->power.led_on);
+	_show_actual(rot->parent_path, "is-device-remote", rot->remote_brick && rot->remote_brick->power.led_on);
 
 	if (open_count != rot->old_open_count) {
 		rot->old_open_count = open_count;
