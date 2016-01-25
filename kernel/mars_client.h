@@ -54,6 +54,7 @@ struct client_brick {
 	bool separate_reads;
 	// readonly from outside
 	int connection_state; // 0 = switched off, 1 = not connected, 2 = connected
+	int socket_count;
 };
 
 struct client_input {
