@@ -2168,6 +2168,7 @@ sub create_res {
       my $old_res = $1;
       next if $old_res eq $res;
       my $old_name = get_link($old_dev);
+      $old_name =~ s/\@.*//;
       if ($old_name eq $appear) {
 	if ( -l "$mars/resource-$old_res/data-$host") {
 	  ldie "device '/dev/mars/$old_name' is already present in joined resource '$old_res'\n";
@@ -2179,6 +2180,7 @@ sub create_res {
     # warn if devices are named differently throughout the cluster
     foreach my $old_dev (glob("$resdir/device-*")) {
       my $old_name = get_link($old_dev);
+      $old_name =~ s/\@.*//;
       if ($old_name ne $appear) {
 	$old_dev =~ m:/device-(.+)$:;
 	my $old_host = $1;
