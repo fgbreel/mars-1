@@ -4382,6 +4382,8 @@ void _show_dev(struct mars_rotate *rot)
 	if (rot->remote_brick) {
 		__show_actual(rot->parent_path, "remote-conn-state", rot->remote_brick->connection_state - 1);
 		__show_actual(rot->parent_path, "remote-conn-sockets", rot->remote_brick->socket_count);
+		__show_actual(rot->parent_path, "remote-conn-flying", atomic_read(&rot->remote_brick->fly_count));
+		__show_actual(rot->parent_path, "remote-conn-timeout", atomic_read(&rot->remote_brick->timeout_count));
 	}
 
 	if (open_count != rot->old_open_count) {
