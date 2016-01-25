@@ -1402,13 +1402,13 @@ void _make_new_replaylink(struct mars_rotate *rot, char *new_host, int new_seque
 }
 
 static
-int __show_actual(const char *path, const char *name, int val)
+int __show_actual(const char *path, const char *name, long long val)
 {
 	char *src;
 	char *dst = NULL;
 	int status = -EINVAL;
 
-	src = path_make("%d", val);
+	src = path_make("%lld", val);
 	dst = path_make("%s/actual-%s/%s", path, my_id(), name);
 	status = -ENOMEM;
 	if (!dst)
@@ -4384,6 +4384,7 @@ void _show_dev(struct mars_rotate *rot)
 		__show_actual(rot->parent_path, "remote-conn-sockets", rot->remote_brick->socket_count);
 		__show_actual(rot->parent_path, "remote-conn-flying", atomic_read(&rot->remote_brick->fly_count));
 		__show_actual(rot->parent_path, "remote-conn-timeout", atomic_read(&rot->remote_brick->timeout_count));
+		__show_actual(rot->parent_path, "remote-conn-hangstamp", rot->remote_brick->hang_stamp.tv_sec);
 	}
 
 	if (open_count != rot->old_open_count) {
