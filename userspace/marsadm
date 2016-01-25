@@ -4054,6 +4054,13 @@ sub eval_fn {
       $lnk = correct_path($lnk);
       return get_link($lnk, 1);
     }
+    if (/^(remdev)[-_]?(state|sockets|flying|timeout|eldest)$/) {
+      my $where = $1;
+      my $what = $2;
+      my $lnk = $$env{"resdir"} . "/actual-" . $$env{"host"} . "/remote-conn-$what";
+      $lnk = correct_path($lnk);
+      return get_link($lnk, 1);
+    }
     if (/^(tree|rest-space)$/) {
       my $what = $1;
       my $lnk = "$mars/$what-$host";
@@ -5092,6 +5099,8 @@ my %trivial_globs =
    "{sync,fetch,replay}-{ops-rate,amount-rate,rate,remain}"
    => "",
    "device-{ops-rate,amount-rate,rate}"
+   => "",
+   "remdev-{state,sockets,flying,timeout,eldest}"
    => "",
    "replay-basenr"
    => "",
