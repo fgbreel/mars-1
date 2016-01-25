@@ -3977,28 +3977,37 @@ sub eval_fn {
       }
       return 1;
     }
-    if (/^get[-_]?(disk|device)$/) {
+    if (/^get[-_]?(disk|device|remdev)$/) {
       my $what = $1;
       $what = "data" if $what eq "disk";
+      # Only warn when disk does not exist.
+      # Other scenarios like diskless remote devices may happen regulary.
+      my $warn = $what ne "disk" ? 2 : 1;
       my $lnk = $$env{"resdir"} . "/$what-" . $$env{"host"};
-      my $result = get_link($lnk, 1);
+      my $result = get_link($lnk, $warn);
       $result = "" unless defined($result);
-      $result = "/dev/mars/$result" if ($what eq "device" && $result !~ m:^/:);
+      $result = "/dev/mars/$result" if ($what =~ "dev" && $result !~ m:^/:);
       return $result;
     }
-    if (/^(disk|device)[-_]?present$/) {
+    if (/^(disk|device|remdev)[-_]?present$/) {
       my $what = $1;
       $what = "data" if $what eq "disk";
+      # Only warn when disk does not exist.
+      # Other scenarios like diskless remote devices may happen regulary.
+      my $warn = $what ne "disk" ? 2 : 1;
       my $lnk = $$env{"resdir"} . "/$what-" . $$env{"host"};
-      my $result = get_link($lnk, 1);
+      my $result = get_link($lnk, $warn);
       $result = "" unless defined($result);
-      $result = "/dev/mars/$result" if ($what eq "device" && $result !~ m:^/:);
       if ($result) {
 	if ($result =~ m/^(.+)\@(.+)$/) {
 	  my $peer = $2;
 	  my $lnk = $$env{"resdir"} . "/actual-$peer/is-$what-remote";
-	  my $result = get_link($lnk);
+	  if ($what eq "remdev") {
+	    $lnk = $$env{"resdir"} . "/actual-$host/is-device-remote";
+	  }
+	  $result = get_link($lnk, $warn);
 	} else {
+	  $result = "/dev/mars/$result" if ($what eq "device" && $result !~ m:^/:);
 	  $result = -b $result;
 	}
 	$result = "0" unless defined($result);
@@ -5014,11 +5023,11 @@ my %trivial_globs =
    => "",
    "rest-space"
    => "",
-   "get-{disk,device}"
+   "get-{disk,device,remdev}"
    => "",
    "present-{disk,device}"
    => "(deprecated, use *-present instead)",
-   "{disk,device}-present"
+   "{disk,device,remdev}-present"
    => "",
    "device-opened"
    => "",
