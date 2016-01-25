@@ -55,6 +55,8 @@ struct client_brick {
 	// readonly from outside
 	int connection_state; // 0 = switched off, 1 = not connected, 2 = connected
 	int socket_count;
+	atomic_t fly_count;
+	atomic_t timeout_count;
 };
 
 struct client_input {
@@ -91,8 +93,6 @@ struct client_bundle {
 
 struct client_output {
 	MARS_OUTPUT(client);
-	atomic_t fly_count;
-	atomic_t timeout_count;
 	struct mutex mutex;
 	struct list_head mref_list;
 	int  last_id;
