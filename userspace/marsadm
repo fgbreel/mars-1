@@ -2936,11 +2936,16 @@ sub primary_phase0 {
   }
   return if ($old eq $host and $cmd eq "primary");
   return if $old eq "(none)";
+  my $name = get_link("$mars/resource-$res/device-$old", 1);
+  if ($name =~ m/\@(.+)/) {
+    my $peer = $1;
+    lprint "Old primary '$old' has its device exported to '$peer'\n";
+    $old = $peer;
+  }
   my $open_count_path = "$mars/resource-$res/actual-$old/open-count";
   my $device_in_use = get_link($open_count_path, 1);
   if ($device_in_use) {
-    my $name = get_link("$mars/resource-$res/device-$old", 1) || "unknown";
-    lwarn "device '/dev/mars/$name' for resource '$res' is $device_in_use times in use on primary host '$old'\n";
+    lwarn "device '/dev/mars/$name' for resource '$res' is $device_in_use times in use on host '$old'\n";
     ldie "first you must umount/close the device (on host '$old')\n" unless $force;
     lwarn "First you SHOULD umount/close the device (on host '$old'), but you ignore this recommendation by giving the --force option.\n";
     if (is_link_recent($open_count_path)) {
