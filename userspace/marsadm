@@ -888,7 +888,27 @@ sub _is_mars_device_present {
 
 sub check_mars_device {
   my ($cmd, $res, $wait, $inv) = @_;
-  my $name = get_link("$mars/resource-$res/device-$host", $inv);
+  my $device_name = get_link("$mars/resource-$res/device-$host", 2);
+  my $name = $device_name;
+  my $remdev_name = get_link("$mars/resource-$res/remdev-$host", 2);
+  # when both are present, we need to choose
+  if ($device_name && $remdev_name) {
+    my $des_primary = _get_designated_primary($res);
+    my $lnk = "$mars/resource-$res/actual-$host/is-primary";
+    my $is_primary = get_link($lnk, 2);
+    if ($des_primary ne $host && !$is_primary) {
+      # We are in a secondary role, thus the remote device _should_
+      # appear here.
+      $name = $remdev_name;
+      $name =~ s/\@.*$//;
+    }
+  } elsif ($remdev_name) {
+    $name = $remdev_name;
+  }
+  if (!$name) {
+    lwarn "Cannot find a device name for resource '$res' at host '$host'\n";
+    return;
+  }
   my $dev = "/dev/mars/$name";
   my $backoff = 1;
   my $round = 0;
