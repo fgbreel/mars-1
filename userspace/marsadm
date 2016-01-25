@@ -4636,6 +4636,7 @@ my %complex_macros =
    .    "%{type}Device %{location}%if{%ne{%{devname}}{%{res}}}{ Resource %{res}}"
    .    "%elsif{%{present}}{"
    .      " Present["
+   .          "%if{%device-opened{}}{Opened, }"
    .          "%device-ops-rate{} IOPS"
    .        "]"
    .    "}{%eq{%{direction}}{imported_from}}{"
