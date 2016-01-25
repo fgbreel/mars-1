@@ -4650,6 +4650,7 @@ my %complex_macros =
    .            ", %remdev-nrsockets{} Sockets"
    .          "}"
    .          ", %device-nrflying{} Flying"
+   .          "%if{%device-hangstamp{}}{ %human-seconds{%-{%time{}}{%device-hangstamp{}}}}"
    .        "]"
    .    "}{%eq{%{direction}}{imported_from}}{"
    .      " NotPresent"
