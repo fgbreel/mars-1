@@ -1567,9 +1567,17 @@ sub _get_actual_primary {
   # This tries to workaround the most important special case of
   # split-brain situations, but cannot fix the problem exhaustively.
   llog "DEPRECATED: you are trying to uniquely identify an actual primary hostname (as seen from host $host resource $res), but this is conceptually wrong because in split-brain situations there may exist multiple ones. Use view-is-primary instead. That would be safe.\n";
-  my $name = get_link("$mars/resource-$res/device-$real_host", 1);
+  my $name = get_link("$mars/resource-$res/device-$real_host", 2);
   my $dev = "/dev/mars/$name";
   return $real_host if -b $dev;
+  # Similar workaround for remote devices
+  $name = get_link("$mars/resource-$res/remdev-$host", 2);
+  $name =~ s:\@(.+)$::;
+  my $peer = $1;
+  if (defined($peer)) {
+    $dev = "/dev/mars/$name";
+    return $peer if -b $dev;
+  }
   # The following old code is CONCEPTUALLY WRONG for split-brain situations (see NOTE above)
   my @primary_links = glob("$mars/resource-$res/actual-*/is-primary");
   my $primary;
