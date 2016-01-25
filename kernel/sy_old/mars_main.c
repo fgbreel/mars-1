@@ -4379,6 +4379,10 @@ void _show_dev(struct mars_rotate *rot)
 	__show_actual(rot->parent_path, "open-count", open_count);
 	_show_actual(rot->parent_path, "is-device-local", rot->if_brick && rot->if_brick->power.led_on);
 	_show_actual(rot->parent_path, "is-device-remote", rot->remote_brick && rot->remote_brick->power.led_on);
+	if (rot->remote_brick) {
+		__show_actual(rot->parent_path, "remote-conn-state", rot->remote_brick->connection_state - 1);
+		__show_actual(rot->parent_path, "remote-conn-sockets", rot->remote_brick->socket_count);
+	}
 
 	if (open_count != rot->old_open_count) {
 		rot->old_open_count = open_count;
