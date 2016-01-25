@@ -4648,6 +4648,7 @@ my %complex_macros =
    .          "%if{%remdev-present{}}{"
    .            ", %remdev-nrsockets{} Sockets"
    .          "}"
+   .          ", %device-nrflying{} Flying"
    .        "]"
    .    "}{%eq{%{direction}}{imported_from}}{"
    .      " NotPresent"
