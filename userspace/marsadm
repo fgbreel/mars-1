@@ -3670,19 +3670,22 @@ sub eval_fn {
       }
       ldie "bad binary operator '$op'";
     }
-    if (/^(&&|\|\||and|or)$/) { # shortcut operators
+    if (/^(&&|\|\||and|or|xor)$/) { # boolean shortcut operators
       my $op = $1;
       $op = "&&" if $op eq "and";
       $op = "||" if $op eq "or";
       my $number = parse_macro($arg1, $env);
+      $number = (defined($number) && !!$number);
       while (defined(my $next = shift)) {
 	$_ = $op;
 	if (/^&&$/)   { return 0 if !$number; }
 	if (/^\|\|$/) { return 1 if $number;  }
-	my $operand = parse_macro($next, $env);
+	my $operand = make_numeric(parse_macro($next, $env));
+	$operand = (defined($operand) && !!$operand);
 	$_ = $op;
 	if (/^&&$/)   { $number &= $operand; next; }
 	if (/^\|\|$/) { $number |= $operand; next; }
+	if (/xor$/)   { $number = ($number != $operand); next; }
 	ldie "bad shortcut operator '$op'";
       }
       return $number;
