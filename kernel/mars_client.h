@@ -58,6 +58,8 @@ struct client_brick {
 	atomic_t fly_count;
 	atomic_t timeout_count;
 	struct timespec hang_stamp; /* submit stamp of eldest request */
+	// private
+	struct timespec last_timeout_stamp;
 };
 
 struct client_input {
