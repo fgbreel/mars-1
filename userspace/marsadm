@@ -3014,16 +3014,26 @@ sub primary_phase4 {
 
 sub wait_umount_res {
   my ($cmd, $res) = @_;
+  my $peer = $host;
+  if ($cmd =~ /all$/) {
+    $peer = "*";
+  } else {
+    my $lnk = "$mars/resource-$res/device-$host";
+    my $name = get_link($lnk, 1);
+    if ($name =~ m/\@(.+)/) {
+      $peer = $1;
+    }
+  }
   while (1) {
     my $sum = 0;
-    foreach my $path (glob("$mars/resource-$res/actual-$host/open-count")) {
-      $sum += get_link($path);
+    foreach my $path (glob("$mars/resource-$res/actual-$peer/open-count")) {
+      $sum += int(get_link($path, 1));
     }
     last if !$sum;
-    lprint "device for resource '$res' is $sum times in use on $host\n";
+    lprint "device for resource '$res' is $sum times in use at $peer\n";
     sleep_timeout(3);
   }
-  lprint "OK, device for resource '$res' is not in use.\n";
+  lprint "OK, device for resource '$res' is not in use at $peer.\n";
 }
 
 sub invalidate_res_phase0 {
@@ -5459,8 +5469,14 @@ my %cmd_table =
       ],
    "wait-umount"
    => [
+       "Wait until /dev/mars/<resource_name> has disappeared locally.",
+       "Useful on both primary and secondary nodes.",
+       \&wait_umount_res,
+      ],
+   "wait-umount-all"
+   => [
        "Wait until /dev/mars/<resource_name> has disappeared in the",
-       "cluster (even remotely).",
+       "whole cluster (including remote members).",
        "Useful on both primary and secondary nodes.",
        \&wait_umount_res,
       ],
