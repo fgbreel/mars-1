@@ -254,10 +254,33 @@ sub call_hook {
 
 # path correction
 
+# For historic reasons, this is a bit unsystematical.
+# The names / pathnames could be identical everywhere, both in kernel- and
+# userspace, and in primitive macro names.
+# I wanted to correct this some years ago, but a _requirement_ was that
+# any rolled-out data format must not change (even on a single pilot system).
+# Then I wanted to do the conversion of the tree automatically via marsadm,
+# but even this was denied. Even released alpha versions which never went
+# into production were affected. Later I discovered by accident that a
+# proprietary tool (upon which I don't have any influence) had been written
+# without my knowledge, which accesses the symlink tree directly,
+# bypassing marsadm, and violating the blackbox principle / layering
+# hierarchy documented in mars-manual.pdf.
+# Because of the dependency from this proprietary tool, any contributor
+# to the opensource project MARS should never change anything in the
+# symlink tree. We can only add new symlinks. And we can make virtual
+# adaptations here.
+# Fortunately, the proprietary tool is to die anyway in the long term,
+# because the upstream kernel hackers are demanding to replace the symlinks
+# at all by something else.
+# This opens a chance to cleanup all the mess here.
+
 sub correct_path {
   my ($path) = @_;
   # actual switches
   $path =~ s:(/is-attach)[a-z]*$:$1ed:;
+  $path =~ s:/is-device-attach[a-z]*$:/attached:;
+  $path =~ s:/is-remdev-attach[a-z]*$:/is-device-remote:;
   $path =~ s:(/is-)(fetch)[a-z]*$:$1copy:;
   $path =~ s:(/is-)(apply)[a-z]*$:$1replay:;
   $path =~ s:(/is-(copy|replay|sync))[a-z]*$:$1ing:;
@@ -265,6 +288,8 @@ sub correct_path {
   $path =~ s:(/fetch)[a-z]*$:/connect:;
   $path =~ s:(/apply)[a-z]*$:/allow-replay:;
   $path =~ s:(/replay)[a-z]*$:/allow-replay:;
+  $path =~ s:/device[-_]?attach$:/attach:;
+  $path =~ s:/remdev[-_]?attach$:/rattach:;
   return $path;
 }
 
@@ -3889,7 +3914,7 @@ sub eval_fn {
       $primary = ($primary eq $$env{"host"}) if $op eq "todo";
       return $primary;
     }
-    if (/^todo[-_]?(attach|sync|fetch|replay)?$/) {
+    if (/^todo[-_]?(attach|(device|remdev)[-_]?attach|sync|fetch|replay)?$/) {
       my $what = $1;
       $what = parse_macro($arg1, $env) unless defined($what);
       my $lnk = $$env{"resdir"} . "/todo-" . $$env{"host"} . "/$what";
@@ -4050,7 +4075,7 @@ sub eval_fn {
       my $split = detect_splitbrain($$env{"res"}, 0);
       return $split ? 0 : 1;
     }
-    if (/^is[-_]?(attach|sync|fetch|replay|primary|emergency)$/) {
+    if (/^is[-_]?(attach|(device|remdev)[-_]?attach|sync|fetch|replay|primary|emergency)$/) {
       my $what = $1;
       my $is = "is";
       $is = "has" if $what eq "emergency";
@@ -4322,7 +4347,7 @@ sub eval_fn {
       sleep_timeout($time);
       return "";
     }
-    if (/^wait[-_]?((?:todo|is)[-_](?:attach|sync|fetch|replay|primary)[-_](?:on|off))$/) {
+    if (/^wait[-_]?((?:todo|is)[-_](?:attach|(?:device|remdev)[-_]?attach|sync|fetch|replay|primary)[-_](?:on|off))$/) {
       my $specific = $1;
       $specific =~ s/_/-/g;
       wait_cond($$env{"cmd"}, $$env{"res"}, $specific);
@@ -5077,7 +5102,7 @@ my %trivial_globs =
    # intended for human use
    "{all,the}-{pretty-,}{global-,}{{err,wrn,inf}-,}msg"
    => "",
-   "{is,todo}-{attach,sync,fetch,replay,primary}"
+   "{is,todo}-{attach,device-attach,remdev-attach,sync,fetch,replay,primary}"
    => "",
    "is-{split-brain,consistent,emergency}"
    => "",
@@ -5145,7 +5170,7 @@ my %trivial_globs =
    => "",
 
 
-   "wait-{is,todo}-{attach,sync,fetch,replay,primary}-{on,off}"
+   "wait-{is,todo}-{attach,device-attach,remdev-attach,sync,fetch,replay,primary}-{on,off}"
    => "",
   );
 
