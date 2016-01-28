@@ -4042,8 +4042,9 @@ sub eval_fn {
       }
       return 1;
     }
-    if (/^get[-_]?(disk|device|remdev)$/) {
+    if (/^get[-_]?(disk|device|remdev)([-_]?peer)?$/) {
       my $what = $1;
+      my $get_peer = $2;
       $what = "data" if $what eq "disk";
       # Only warn when disk does not exist.
       # Other scenarios like diskless remote devices may happen regulary.
@@ -4051,7 +4052,11 @@ sub eval_fn {
       my $lnk = $$env{"resdir"} . "/$what-" . $$env{"host"};
       my $result = get_link($lnk, $warn);
       $result = "" unless defined($result);
-      $result = "/dev/mars/$result" if ($what =~ "dev" && $result !~ m:^/:);
+      if (defined($get_peer)) {
+	$result =~ s:^.*\@::;
+      } else {
+	$result = "/dev/mars/$result" if ($what =~ "dev" && $result !~ m:^/:);
+      }
       return $result;
     }
     if (/^(disk|device|remdev)[-_]?present$/) {
@@ -5149,6 +5154,8 @@ my %trivial_globs =
    "rest-space"
    => "",
    "get-{disk,device,remdev}"
+   => "",
+   "get-{device,remdev}-peer"
    => "",
    "present-{disk,device}"
    => "(deprecated, use *-present instead)",
