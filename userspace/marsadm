@@ -3911,15 +3911,19 @@ sub eval_fn {
       }
       return $list;
     }
-    if (/^(my|all)[-_]?resources$/) {
-      my $what = $1;
+    if (/^(my|all)[-_]?(?:resources|(resource|device|remdev)[-_]?-list)$/) {
+      my $where = $1;
+      my $what = $2;
       my $peer = "*";
-      if ($what eq "my") {
+      if ($where eq "my") {
 	$peer = parse_macro($arg1, $env);
 	$peer = $$env{"host"} unless $peer;
       }
-      my @list = glob("$mars/resource-*/data-$peer");
-      map { s:^$mars/resource-(.*?)/data-.*:$1:; } @list;
+      my $key = "data";
+      $key = $what if $what =~ /dev/;
+      my $glob = "$mars/resource-*/$key-$peer";
+      my @list = glob($glob);
+      map { s:^$mars/resource-(.*?)/[a-z]+-.*:$1:; } @list;
       my $list = "";
       my $old = "";
       foreach my $item (sort(@list)) {
@@ -5170,6 +5174,8 @@ my %trivial_globs =
 
    # intended for scripting
    "{my,all}-resources"
+   => "",
+   "{my,all}-{resource,device,remdev}-list"
    => "",
    "{cluster,resource}-members"
    => "",
