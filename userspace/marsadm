@@ -4214,10 +4214,10 @@ sub eval_fn {
       }
       return $sum;
     }
-    if (/^(disk|resource|device)[-_]?size$/) {
+    if (/^(disk|resource|device|remdev)[-_]?size$/) {
       my $what = $1;
       my $path = "$mars/resource-" . $$env{"res"};
-      if ($what eq "device" && eval_fn($env, "device-present", "")) {
+      if ($what =~ /dev/ && eval_fn($env, "device-present", "")) {
 	return _get_mars_size($$env{"cmd"}, $$env{"res"});
       } elsif ($what eq "disk"){
 	my $peer = parse_macro($arg1, $env);
@@ -5041,7 +5041,7 @@ my %trivial_globs =
    => "",
    "{cluster,resource}-members"
    => "",
-   "{disk,resource,device}-size"
+   "{disk,resource,device,remdev}-size"
    => "",
    "deletable-size"
    => "",
