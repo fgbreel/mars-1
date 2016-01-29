@@ -647,6 +647,8 @@ struct mars_rotate {
 	bool is_log_damaged;
 	bool has_emergency;
 	bool log_is_really_damaged;
+	bool is_device_local;
+	bool is_device_remote;
 	struct mutex inf_mutex;
 	bool infs_is_dirty[MAX_INFOS];
 	struct trans_logger_info infs[MAX_INFOS];
@@ -4371,14 +4373,18 @@ static
 void _show_dev(struct mars_rotate *rot)
 {
 	int open_count = 0;
+	bool is_device_local;
+	bool is_device_remote;
 
 	if (rot->if_brick) {
 		_show_rate(rot, &rot->if_brick->io_limiter, "if_rate");
 		open_count = atomic_read(&rot->if_brick->open_count);
 	}
 	__show_actual(rot->parent_path, "open-count", open_count);
-	_show_actual(rot->parent_path, "is-device-local", rot->if_brick && rot->if_brick->power.led_on);
-	_show_actual(rot->parent_path, "is-device-remote", rot->remote_brick && rot->remote_brick->power.led_on);
+	is_device_local = rot->if_brick && rot->if_brick->power.led_on;
+	_show_actual(rot->parent_path, "is-device-local", is_device_local);
+	is_device_remote = rot->remote_brick && rot->remote_brick->power.led_on;
+	_show_actual(rot->parent_path, "is-device-remote", is_device_remote);
 	if (rot->remote_brick) {
 		__show_actual(rot->parent_path, "remote-conn-state", rot->remote_brick->connection_state - 1);
 		__show_actual(rot->parent_path, "remote-conn-sockets", rot->remote_brick->socket_count);
@@ -4386,6 +4392,11 @@ void _show_dev(struct mars_rotate *rot)
 		__show_actual(rot->parent_path, "remote-conn-timeout", atomic_read(&rot->remote_brick->timeout_count));
 		__show_actual(rot->parent_path, "remote-conn-hangstamp", rot->remote_brick->hang_stamp.tv_sec);
 	}
+	if (rot->is_device_local != is_device_local ||
+	    rot->is_device_remote != is_device_remote)
+		mars_remote_trigger();
+	rot->is_device_local = is_device_local;
+	rot->is_device_remote = is_device_remote;
 
 	if (open_count != rot->old_open_count) {
 		rot->old_open_count = open_count;
