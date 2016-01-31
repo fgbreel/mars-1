@@ -4540,7 +4540,7 @@ setup:
 			       devname,
 			       (const struct generic_brick_type *)&if_brick_type,
 			       (const struct generic_brick_type *[]){(const struct generic_brick_type *)&client_brick_type},
-			       switch_on || (rot->if_brick && atomic_read(&rot->if_brick->open_count) > 0) ? 2 : -1,
+			       switch_on ? 2 : -1,
 			       "%s/remdev-%s", 
 			       (const char *[]){client_path},
 			       1,
