@@ -590,7 +590,7 @@ int handler_thread(void *data)
 			if (prev->outputs[0]->nr_connected &&
 			    (status < 0 || memcmp(&prev->peer_addr, &peer_addr, peer_addr_len))) {
 				MARS_WRN("invalid additional connect to '%s' from a different address\n", path);
-				status = -EBUSY;
+				status = -EISCONN;
 				break;
 			}
 			memset(&prev->peer_addr, 0, sizeof(prev->peer_addr));
