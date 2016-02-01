@@ -203,6 +203,8 @@ void if_endio(struct generic_callback *cb)
 			int bi_size = bio->bi_size;
 #endif
 //      end_remove_this
+			if (likely(input->brick))
+				input->brick->error_code = error;
 			MARS_ERR("NYI: error=%d RETRY LOGIC %u\n", error, bi_size);
 		} else { // bio conventions are slightly different...
 			error = 0;
@@ -512,6 +514,7 @@ void if_make_request(struct request_queue *q, struct bio *bio)
 
 	if (!brick->power.led_on) {
 		error = -ENOTCONN;
+		brick->error_code = error;
 		bio_endio(bio, error);
 		goto done;
 	}
@@ -757,6 +760,7 @@ err:
 	if (error < 0) {
 		MARS_ERR("cannot submit request from bio, status=%d\n", error);
 		if (!assigned) {
+			brick->error_code = error;
 //      remove_this
 #ifdef HAS_BI_ERROR
 //      end_remove_this
@@ -938,6 +942,8 @@ static int if_switch(struct if_brick *brick)
 	// brick should be switched on
 	if (brick->power.button && brick->power.led_off) {
 		loff_t capacity;
+
+		brick->error_code = 0;
 
 		brick->say_channel = get_binding(current);
 
@@ -1196,6 +1202,7 @@ if_release(struct gendisk *gd, fmode_t mode)
 		}
 
 		MARS_DBG("status button=%d led_on=%d led_off=%d\n", brick->power.button, brick->power.led_on, brick->power.led_off);
+		brick->error_code = 0;
 		mars_trigger();
 	}
 //      remove_this
