@@ -4093,7 +4093,7 @@ sub eval_fn {
       my $what = $1;
       return eval_fn($env, "$what-present", $arg1);
     }
-    if (/^(device|remdev)[-_]?(opened|connstate|nrsockets|nrflying|nrtimeouts|hangstamp)$/) {
+    if (/^(device|remdev)[-_]?(opened|error|connstate|nrsockets|nrflying|nrtimeouts|hangstamp)$/) {
       my $what = $1;
       my $op = $2;
       my $prefix = "remote-conn";
@@ -4109,6 +4109,7 @@ sub eval_fn {
       my %transl =
 	(
 	 "opened"      => "open-count",
+	 "error"       => "$prefix-state",
 	 "connstate"   => "$prefix-state",
 	 "nrsockets"   => "$prefix-sockets",
 	 "nrflying"    => "$prefix-flying",
@@ -4117,7 +4118,8 @@ sub eval_fn {
 	);
       my $lnk = $$env{"resdir"} . "/actual-$peer/" . $transl{$op};
       my $result = get_link($lnk, 2);
-      $result = "0" unless defined($result);
+      $result = "0" unless defined($result) && $result ne "";
+      $result = "0" if ($op eq "error" && $result > 0);
       return $result;
     }
     if (/^is[-_]?split([-_]?brain)?$/) {
@@ -5165,7 +5167,7 @@ my %trivial_globs =
    => "(deprecated, use *-present instead)",
    "{disk,device,remdev}-present"
    => "",
-   "{device,remdev}-{opened,connstate,nrsocket,nrflying,nrtimeouts,hangstamp}"
+   "{device,remdev}-{opened,error,connstate,nrsocket,nrflying,nrtimeouts,hangstamp}"
    => "",
    "get-log-status"
    => "",
