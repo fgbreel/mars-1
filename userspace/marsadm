@@ -4721,6 +4721,7 @@ my %complex_macros =
    .    "%elsif{%{present}}{"
    .      " %if{%todo-remdev-attach{}}{}{Remains}Present["
    .          "%if{%device-opened{}}{Opened, }"
+   .          "%if{%device-error{}}{FAILURE %errno-text{%device-error{}}, }"
    .          "%device-ops-rate{} IOPS"
    .          "%if{%remdev-present{}}{"
    .            ", %remdev-nrsockets{} Sockets"
