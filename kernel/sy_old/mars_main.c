@@ -4379,6 +4379,7 @@ void _show_dev(struct mars_rotate *rot)
 	if (rot->if_brick) {
 		_show_rate(rot, &rot->if_brick->io_limiter, "if_rate");
 		__show_actual(rot->parent_path, "if-flying", atomic_read(&rot->if_brick->flying_count));
+		__show_actual(rot->parent_path, "if-state", rot->if_brick->error_code);
 		open_count = atomic_read(&rot->if_brick->open_count);
 	}
 	__show_actual(rot->parent_path, "open-count", open_count);
