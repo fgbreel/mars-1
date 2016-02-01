@@ -948,7 +948,10 @@ static int if_switch(struct if_brick *brick)
 			mars_power_led_off((void*)brick,  false);
 		}
 	}
-	if (brick->power.button && !brick->power.led_on && !brick->power.led_off) {
+	if (brick->power.button &&
+	    !brick->power.led_on &&
+	    !brick->power.led_off &&
+	    !input->disk) {
 		status = -ENOMEM;
 		q = blk_alloc_queue(GFP_MARS);
 		if (!q) {
