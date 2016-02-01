@@ -4467,19 +4467,25 @@ int make_dev_remote(void *buf, struct mars_dent *dent)
 		goto setup;
 
 
-	/* Check whether designated primary is the correct one
+	/* Check whether _designated_ primary is the correct one.
+	 * Keep any already opened devices, don't forcefully shutdown
+	 * unless *attach overrides it.
 	 */
 	status_path = path_make("%s/primary", parent->d_path);
 	status_val = mars_readlink(status_path);
 	MARS_DBG("designated = '%s' primary = '%s'\n", status_val, primary);
-	if (strcmp(status_val, primary))
+	if (strcmp(status_val, primary) &&
+	    (!rot->if_brick ||
+	     atomic_read(&rot->if_brick->open_count) <= 0))
 		goto setup;
 
 
 	brick_string_free(status_path);
 	brick_string_free(status_val);
 
-	/* In addition, check actual primary
+	/* In addition, check _actual_ primary.
+	 * This time, shutdown is forced once the actual primary
+	 * role gets lost for any reason.
 	 */
 	status_path = path_make("%s/actual-%s/is-primary",
 				parent->d_path, primary);
