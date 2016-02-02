@@ -4735,6 +4735,8 @@ my %complex_macros =
    .        "]"
    .    "}{%eq{%{direction}}{imported_from}}{"
    .      " Not%if{%and{%todo-remdev-attach{}}{%eq{%get-remdev-peer{}}{%get-primary{}}}}{Yet}Present"
+   .    "}{%logger-opened{}}{"
+   .      " Locked[%logger-opened{}]"
    .    "}\n"
    .  "}",
 
