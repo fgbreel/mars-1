@@ -4122,6 +4122,10 @@ sub eval_fn {
       $result = "0" if ($op eq "error" && $result > 0);
       return $result;
     }
+    if (/logger[-_]?opened$/) {
+      my $lnk = $$env{"resdir"} . "/actual-" . $$env{"host"} . "/trans-connect-count";
+      return get_link($lnk, 2);
+    }
     if (/^is[-_]?split([-_]?brain)?$/) {
       my $split = detect_splitbrain($$env{"res"}, 0);
       return $split ? 0 : 1;
