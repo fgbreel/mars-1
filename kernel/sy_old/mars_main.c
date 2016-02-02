@@ -4188,6 +4188,9 @@ done:
 		}
 	}
 
+	_show_actual(rot->parent_path, "trans-connect-count",
+		     rot->trans_brick && rot->trans_brick->outputs[0] ?
+		     rot->trans_brick->outputs[0]->nr_connected : 0);
 	_show_actual(rot->parent_path, "is-replaying", rot->trans_brick && rot->trans_brick->replay_mode && !rot->trans_brick->power.led_off);
 	_show_rate(rot, &rot->replay_limiter, "replay_rate");
 	_show_actual(rot->parent_path, "is-copying", rot->fetch_brick && !rot->fetch_brick->power.led_off);
