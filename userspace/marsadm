@@ -3855,7 +3855,8 @@ sub eval_fn {
       $what = parse_macro($arg1, $env) unless defined($what);
       my $lnk = $$env{"resdir"} . "/todo-" . $$env{"host"} . "/$what";
       $lnk = correct_path($lnk);
-      return get_link($lnk, 1);
+      my $warn = $what =~ m/remdev/ ? 2 : 1;
+      return get_link($lnk, $warn);
     }
     if (/^get[-_]?msg$/) {
       my $what = parse_macro($arg1, $env);
@@ -3988,7 +3989,8 @@ sub eval_fn {
       $is = "has" if $what eq "emergency";
       my $lnk = $$env{"resdir"} . "/actual-" . $$env{"host"} . "/$is-$what";
       $lnk = correct_path($lnk);
-      return get_link($lnk, 1);
+      my $warn = $what =~ m/remdev/ ? 2 : 1;
+      return get_link($lnk, $warn);
     }
     if (/^does$/) {
       my $what = parse_macro($arg1, $env);
