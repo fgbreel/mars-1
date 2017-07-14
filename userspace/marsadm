@@ -2111,6 +2111,7 @@ sub create_res {
     } # retry loop
     ldie "resource '$res' does not exist\n" unless -d $resdir;
     ldie "resource '$res' has no designated primary\n" unless $primary && $primary ne "(none)";
+    rsync_cmd($primary, "--max-size=1 --update $primary:$mars/*-$primary $mars/", $res, 1);
     finish_links();
     wait_cluster($cmd, $res);
     my $res_size = get_link("$mars/resource-$res/size", 1);
